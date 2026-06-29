@@ -1,102 +1,30 @@
 import java.util.Scanner;
-import java.util.TreeMap;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-
-
-class Player{
-    private int playerId;
-    private String name;
-    private int rating;
-    private double points;
-
-    Player(int playerId, String name, int rating, double points){
-        this.playerId = playerId;
-        this.name = name;
-        this.rating = rating;
-        this.points  = points;
-    }
-
-    int getPlayerId(){
-        return playerId;
-    }
-    String getName(){
-        return name;
-    }
-    int getRating(){
-        return rating;
-    }
-    double getPoints(){
-        return points;
-    }
-    void addRating(int rating){
-        this.rating = this.rating+rating;
-    }
-    void addPoints(double points){
-        this.points = this.points+points;
-    }
-
-}
-
-
-
-class Match{
-    private int matchId;
-    private int player01Id;
-    private int player02Id;
-    private int winId;
-
-    Match(int matchId, int player01Id, int player02Id, int winId){
-        this.matchId = matchId;
-        this.player01Id = player01Id;
-        this.player02Id = player02Id;
-        this.winId = winId;
-        
-    }
-
-    int getMatchId(){
-        return matchId;
-    }
-    int getPlayer01Id(){
-        return player01Id;
-    }
-    int getPlayer02Id(){
-        return player02Id;
-    }
-    int getWinId(){
-        return winId;
-    }
-    String getResult(){
-        if(winId!=0) return winId+" Wins";
-        else return "Draw";
-    }
-}
-
-
 
 class Tournament{
     private static final String url = "jdbc:mysql://localhost:3306/chesstournamentdb";
     private static final String username = "root";
-    private static final String password = "Password";
+    private static final String password = "YOUR_PASSWORD";
     
-
-    TreeMap<Integer, Player> players = new TreeMap<>();
-    TreeMap<Integer, Match> matches = new TreeMap<>();
-
-
     void addPlayer(int playerId, String name, int rating){
-        
         try{
             Connection con = DriverManager.getConnection(url,username,password);
 
-            String query = "insert into players(playerId, name, rating, points) values(?,?,?,0)";
-            PreparedStatement statement = con.prepareStatement(query);
+            String query1 = "insert into players(playerId, name, rating, points) values(?,?,?,0)";
+            String query2 = "select playerid from players";
+            PreparedStatement statement1 = con.prepareStatement(query2);
+            ResultSet playerexistence = statement1.executeQuery();
+            while(playerexistence.next()){
+                if(playerexistence.getInt("playerid")==playerId){
+                    System.out.println("Player Already Exist.");
+                    return;
+                }
+            }
+            PreparedStatement statement = con.prepareStatement(query1);
             statement.setInt(1, playerId);
             statement.setString(2, name);
             statement.setInt(3, rating);
@@ -104,9 +32,6 @@ class Tournament{
             int result = statement.executeUpdate();
             if(result>0){
                 System.out.println("Player Added");
-            }
-            else{
-                System.out.println("Player Already Exist");
             }
             
         }catch(SQLException a){
@@ -116,7 +41,6 @@ class Tournament{
     }
 
     void removePlayer(int playerId){
-
         try{
             Connection con = DriverManager.getConnection(url,username,password);
 
@@ -131,7 +55,6 @@ class Tournament{
             else{
                 System.out.println("Player Does not Exist");
             }
-            
         }catch(SQLException a){
             System.out.println(a.getMessage());
         }
@@ -140,7 +63,6 @@ class Tournament{
     void searchPlayer(String partOfName){
         System.out.println("Searching...");
         boolean found = false;
-        
         try{
             Connection con = DriverManager.getConnection(url,username,password);
 
@@ -172,35 +94,50 @@ class Tournament{
     }
 
     void displayPlayerProfile(int playerId){
-        if(players.containsKey(playerId)){
-            Player p = players.get(playerId);
-            int i=1;
-            System.out.println("Player Id: "+p.getPlayerId()+"\nPlayer Name: "+p.getName()+"\nRating: "+p.getRating()+"\nPoints: "+p.getPoints());
-            for(Match match : matches.values()){
-                if(match.getPlayer01Id()==playerId){
-                    if(i==1) System.out.println("Matches Played: ");
-                    String result;
-                    if(match.getWinId()==playerId) result = "wins";
-                    if(match.getWinId()==0) result = "draw";
-                    else result = "loss";
-                    System.out.println(i+". vs "+players.get(match.getPlayer02Id()).getName()+" - "+result );
-                    i++;
+        try{
+            Connection con = DriverManager.getConnection(url,username,password);
+            String query1 = "select * from players where playerid = ?";
+            PreparedStatement statement1 = con.prepareStatement(query1);
+            String query2 = "select player02id, winnerid from matches where player01id = ?";
+            String query3 = "select player01id, winnerid from matches where player02id = ?";
+            String query4 = "select name from players where playerid = ?";
+            PreparedStatement statement2 = con.prepareStatement(query2);
+            PreparedStatement statement3 = con.prepareStatement(query3);
+            PreparedStatement statement4 = con.prepareStatement(query4);
+            statement1.setInt(1, playerId);
+            ResultSet playerDetails = statement1.executeQuery();
+            if(playerDetails.next()){
+                int i = 1;
+                System.out.println("PlayerId: "+playerDetails.getInt("playerid")+"\nName: "+playerDetails.getString("name")+"\nRating: "+playerDetails.getInt("rating")+"\nPoints: "+playerDetails.getDouble("points"));
+                statement2.setInt(1,playerId);
+                ResultSet MatchesDetails = statement2.executeQuery();
+                while(MatchesDetails.next()){
+                    statement4.setInt(1, MatchesDetails.getInt("player02id"));
+                    ResultSet playername = statement4.executeQuery();
+                    if(playername.next()){
+                        System.out.println(i+" vs "+playername.getString("name"));
+                        if(MatchesDetails.getInt("winnerid")==playerId) System.out.println("Result: Won");
+                        else System.out.println("Result: Loss");
+                    } 
                 }
-                else if(match.getPlayer02Id()==playerId){
-                    if(i==1) System.out.println("Matches Played: ");
-                    String result;
-                    if(match.getWinId()==playerId) result = "wins";
-                    if(match.getWinId()==0) result = "draw";
-                    else result = "loss";
-                    System.out.println(i+". vs "+players.get(match.getPlayer01Id()).getName()+" - "+result);
-                    i++;
+                statement3.setInt(1,playerId);
+                MatchesDetails = statement3.executeQuery();
+                while(MatchesDetails.next()){
+                    statement4.setInt(1, MatchesDetails.getInt("player01id"));
+                    ResultSet playername = statement4.executeQuery();
+                    if(playername.next()){
+                        System.out.println(i+" vs "+playername.getString("name"));
+                        if(MatchesDetails.getInt("winnerid")==playerId) System.out.println("Result: Won");
+                        else System.out.println("Result: Loss");
+                    } 
                 }
+
             }
-            if(i==1) System.out.println("No Matches Played yet.");
+            
+        }catch(SQLException e){
+            System.out.println(e.getMessage());
         }
-        else{
-            System.out.println("Player Not found");
-        }
+        
     }
 
     void displayPlayers(){
@@ -238,9 +175,11 @@ class Tournament{
                     check++;
                     Player02Name = players.getString("name");
                 }
-                if(check==2) break;
             }
-            if(check<2) System.out.println("Player Does Not Exist.");
+            if(check<2){
+                System.out.println("Player Does Not Exist.");
+                return;
+            } 
             if(player01Id==player02Id) System.out.println("Player Can't play themselves");
             else{
                 String query2 = "update players set points = points + ? where playerId = ?";
@@ -291,56 +230,70 @@ class Tournament{
     }
 
     void displayMatches(){
-        if(!matches.isEmpty()){
-            System.out.println("Matches Played: ");
-            for(Integer matchId : matches.keySet()){
-                Match m = matches.get(matchId);
-                System.out.println("Match Id: "+m.getMatchId()+"\n"+players.get(m.getPlayer01Id()).getName()+" vs "+players.get(m.getPlayer02Id()).getName()+"\nResult: "+m.getResult());
+        try{
+            Connection con = DriverManager.getConnection(url,username,password);
+            String query1 = "select * from matches";
+            String query2 = "select name from players where playerId = ?";
+            PreparedStatement statement1 = con.prepareStatement(query1);
+            PreparedStatement statement2 = con.prepareStatement(query2);
+            ResultSet matches = statement1.executeQuery();
+            if(!matches.next()) System.out.println("No Matches Played");
+            while(matches.next()){
+                System.out.println("**********************************");
+                System.out.println("matchId: "+matches.getInt("matchid"));
+                statement2.setInt(1,matches.getInt("player01id"));
+                ResultSet playerName = statement2.executeQuery();
+                if(playerName.next()) System.out.print(playerName.getString("name"));
+                System.out.print(" V/S ");
+                statement2.setInt(1,matches.getInt("player02id"));
+                playerName = statement2.executeQuery();
+                if(playerName.next()) System.out.println(playerName.getString("name"));
+                if(matches.getInt("winnerId")==0) System.out.println("Result: Draw");
+                else{ 
+                    statement2.setInt(1,matches.getInt("winnerid"));
+                    playerName = statement2.executeQuery();
+                    if(playerName.next()) System.out.println("Result: "+playerName.getString("name")+" Wins");
+                }
             }
-        }
-        else{
-            System.out.println("No Matches Played.");
+        }catch(SQLException e){
+            e.printStackTrace();
         }
     }
 
     void leaderboard(){
-        if(!players.isEmpty()){
-            System.out.println("LeaderBoard: ");
-            ArrayList<Player> leaderboard = new ArrayList<>(players.values());
-            Comparator<Player> byPoints = new Comparator<Player>() {
-                public int compare(Player p1, Player p2){
-                    return Double.compare(p2.getPoints(), p1.getPoints());
-                }
-    
-            };
-            Collections.sort(leaderboard, byPoints);
-            for(int i=0;i<leaderboard.size();i++){
-                Player p = leaderboard.get(i);
-                System.out.println("Rank: "+(i+1)+"\nPlayerId: "+p.getPlayerId()+"\nName: "+p.getName()+"\nPoints: "+p.getPoints());
+        try{
+            Connection con = DriverManager.getConnection(url,username,password);
+            String query = "select playerid, name, points from players order by points desc";
+            int i = 1;
+            PreparedStatement statement = con.prepareStatement(query);
+            ResultSet leaderboard = statement.executeQuery();
+            while (leaderboard.next()) {
+                System.out.println("*******************************");
+                System.out.println("Rank: "+i+ "\nPlayerId: "+leaderboard.getInt("playerid")+"\nName: "+leaderboard.getString("name")+"\nPoints: "+leaderboard.getDouble("points"));
+                i++;
             }
+        }catch(SQLException e){
+            System.out.println(e.getMessage());
         }
     }
 
     void tournamentStats(){
-        if(!players.isEmpty()){
-            ArrayList<Player> leaderboard = new ArrayList<>(players.values());
-            Comparator<Player> byPoints = new Comparator<Player>() {
-                public int compare(Player p1, Player p2){
-                    return Double.compare(p2.getPoints(), p1.getPoints());
-                }
-    
-            };
-        
-            Collections.sort(leaderboard, byPoints);
-            double sum=0;
-            for(Player player : leaderboard){
-                sum=sum+player.getPoints();
+        try{
+            Connection con = DriverManager.getConnection(url,username,password);
+            String query1 = "select count(playerid), max(points), min(points) from players";
+            String query2 = "select count(matchid) from matches";
+            
+            PreparedStatement statement1 = con.prepareStatement(query1); 
+            PreparedStatement statement2 = con.prepareStatement(query2);
+            
+            ResultSet playerPoints = statement1.executeQuery();
+            ResultSet totalMatches = statement2.executeQuery();
+            if(playerPoints.next() && totalMatches.next()){
+                System.out.println("Total Players: "+playerPoints.getInt("count(playerid)")+"\nTotal Matches: "+totalMatches.getInt("count(matchId)")+"\nMaximum Points: "+playerPoints.getDouble("max(points)")+"\nMinimum Points: "+playerPoints.getDouble("min(points)"));
             }
-        
-            System.out.println("Total Players: "+players.size()+"\nTotal Matches: "+matches.size()+"\nHighest Points: "+leaderboard.get(0).getPoints()+"\nLowest Points: "+leaderboard.get(leaderboard.size()-1).getPoints()+"\nAverage Score: "+(sum/leaderboard.size()));
-        }
-        else{
-            System.out.println("NO players Present");
+            
+        }catch(SQLException e){
+            System.out.println(e.getMessage());
         }
     }
     
