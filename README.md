@@ -20,9 +20,7 @@ Chess tournament Manager
 - JDBC
 
 # Addition left
-- Database Connection in 5,7,8,9.
-- RRemoval og unnecessary classes.
-- Addtion of Guide how to create the database.
+- Completed.
 
 # Author
 Sumesh
